@@ -1,0 +1,293 @@
+<title>Reel Upload Box</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+Kannada:wght@500;700&family=Noto+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one narrow phone-first column — big upload target, then the queue of clips sent to Claude */
+:root {
+  --bg: #f6f3f1;
+  --surface: #ffffff;
+  --fg: #1d1716;
+  --muted: #6c605d;
+  --line: #e4dcd8;
+  --accent: #d1121b;      /* the reel's SUBSCRIBE red */
+  --accent-fg: #ffffff;
+  --ok: #1f7a43;
+  --warn: #a35a00;
+  --bad: #b3141c;
+  --display: "Anton", Impact, "Arial Narrow", sans-serif;
+  --body: "Noto Sans", "Noto Sans Kannada", system-ui, sans-serif;
+  --kn: "Noto Sans Kannada", "Noto Sans", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141010; --surface: #1f1918; --fg: #f3ecea; --muted: #a8998f; --line: #362c2a;
+  --accent: #ff3b3b; --accent-fg: #1a0000; --ok: #4fc483; --warn: #f0a548; --bad: #ff6b6b;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #141010; --surface: #1f1918; --fg: #f3ecea; --muted: #a8998f; --line: #362c2a;
+  --accent: #ff3b3b; --accent-fg: #1a0000; --ok: #4fc483; --warn: #f0a548; --bad: #ff6b6b;
+  color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 40px; }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: grid; gap: 4px; }
+.tag { display: inline-block; justify-self: start; background: var(--accent); color: var(--accent-fg); font-family: var(--display);
+  letter-spacing: .06em; font-size: 15px; padding: 3px 10px 2px; border-radius: 6px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 40px; line-height: 1.05; margin: 6px 0 0; letter-spacing: .01em; text-wrap: balance; }
+.kn { font-family: var(--kn); font-weight: 700; color: var(--muted); margin: 0; }
+.lead { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.drop { position: relative; display: grid; place-items: center; gap: 6px; text-align: center; min-height: 170px; padding: 20px;
+  border: 2px dashed var(--line); border-radius: 16px; background: var(--surface); cursor: pointer; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); }
+.drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.btn { font-family: var(--display); font-size: 22px; letter-spacing: .05em; background: var(--accent); color: var(--accent-fg);
+  padding: 10px 26px 8px; border-radius: 10px; pointer-events: none; }
+.hint { color: var(--muted); font-size: 13px; }
+.hint b { color: var(--fg); }
+
+.section-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; margin: 0; color: var(--muted); }
+.usage { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 12px 14px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 12px; }
+.name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.meta { grid-column: 1; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.state { grid-row: 1 / span 2; grid-column: 2; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.s-ok { color: var(--ok); border: 1px solid currentColor; }
+.s-up { color: var(--warn); border: 1px solid currentColor; }
+.s-bad { color: var(--bad); border: 1px solid currentColor; }
+.err { grid-column: 1 / -1; color: var(--bad); font-size: 13px; }
+.row-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+.link { background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 2px; }
+.link.danger { color: var(--bad); }
+.empty { color: var(--muted); font-size: 14px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; text-align: center; }
+
+.next { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; }
+.next p { margin: 0; }
+.next .say { font-family: var(--display); font-size: 20px; letter-spacing: .03em; }
+.notice { color: var(--bad); font-size: 14px; }
+.reels { display: grid; gap: 14px; }
+.reel { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.reel video { width: 96px; aspect-ratio: 9 / 20; max-width: 100%; object-fit: cover; border-radius: 8px; background: #000; }
+.reel .info { display: grid; gap: 6px; min-width: 0; }
+.reel .title { font-weight: 700; overflow-wrap: anywhere; }
+.dl { justify-self: start; font-family: var(--display); letter-spacing: .05em; font-size: 17px; border: 0; border-radius: 9px; padding: 8px 18px 6px; background: var(--fg); color: var(--bg); cursor: pointer; }
+.dl:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.dl[disabled] { opacity: .5; cursor: default; }
+.dl-msg { font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <span class="tag">SUBSCRIBE</span>
+    <h1>Send your clips for editing</h1>
+    <p class="kn">ಎಡಿಟ್ ಮಾಡಲು ವಿಡಿಯೋಗಳನ್ನು ಇಲ್ಲಿ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ</p>
+    <p class="lead">Pick up to 5 videos from your phone. Each one becomes a 10-second Kannada reel in your format.</p>
+  </header>
+
+  <label class="drop" id="drop" for="picker">
+    <input id="picker" type="file" accept="video/*" multiple>
+    <span class="btn">CHOOSE VIDEOS</span>
+    <span class="hint">or drop them here · <b>max 20 MB each</b></span>
+  </label>
+  <p class="notice" id="notice" hidden></p>
+
+  <section>
+    <div class="section-h"><h2>Finished reels</h2><span class="usage" id="rcount"></span></div>
+    <div class="reels" id="reels"><p class="empty">Your edited reels will appear here. Tap Download to save one to your phone.</p></div>
+  </section>
+
+  <section>
+    <div class="section-h"><h2>Your uploaded clips</h2><span class="usage" id="usage"></span></div>
+    <ul id="list"><li class="empty" style="display:block">Loading your uploads…</li></ul>
+  </section>
+
+  <div class="next">
+    <p>When everything shows <b>Uploaded</b>, go back to the chat and send:</p>
+    <p class="say">"videos uploaded"</p>
+    <p class="hint">Your finished reels come back to the top of this page, ready to download.</p>
+    <p class="hint">A clip over 20 MB won't fit here. Trim it, or attach it directly in the chat instead.</p>
+  </div>
+</main>
+
+<script>
+const MAX = 20 * 1024 * 1024;
+const $ = (id) => document.getElementById(id);
+const listEl = $("list");
+let assets = null;
+let db = null;
+let downloads = null;
+let finished = []; // {asset, name}
+let uploaded = [];        // {id, name, size}
+const pending = new Map(); // local key -> {name, size, state, error}
+let confirmId = null;
+
+function mb(n) { return (n / 1048576).toFixed(1) + " MB"; }
+
+function render() {
+  listEl.textContent = "";
+  const rows = [...pending.values()].filter(p => p.state !== "done");
+  if (!rows.length && !uploaded.length) {
+    const li = document.createElement("li");
+    li.className = "empty"; li.style.display = "block";
+    li.textContent = assets ? "No clips yet. Tap Choose videos to add your first one." : "Uploads aren't available in this view. Open this page signed in to Claude.";
+    listEl.append(li);
+    return;
+  }
+  for (const p of rows) {
+    const li = document.createElement("li");
+    const n = document.createElement("span"); n.className = "name"; n.textContent = p.name;
+    const m = document.createElement("span"); m.className = "meta"; m.textContent = mb(p.size);
+    const s = document.createElement("span");
+    s.className = "state " + (p.state === "error" ? "s-bad" : "s-up");
+    s.textContent = p.state === "error" ? "Not sent" : "Uploading…";
+    li.append(n, s, m);
+    if (p.error) { const e = document.createElement("span"); e.className = "err"; e.textContent = p.error; li.append(e); }
+    listEl.append(li);
+  }
+  for (const u of uploaded) {
+    const li = document.createElement("li");
+    const n = document.createElement("span"); n.className = "name"; n.textContent = u.name;
+    const m = document.createElement("span"); m.className = "meta"; m.textContent = mb(u.size);
+    const s = document.createElement("span"); s.className = "state s-ok"; s.textContent = "Uploaded";
+    const a = document.createElement("div"); a.className = "row-actions";
+    if (confirmId === u.id) {
+      const q = document.createElement("span"); q.className = "hint"; q.textContent = "Remove this clip?";
+      const yes = document.createElement("button"); yes.className = "link danger"; yes.textContent = "Remove";
+      yes.onclick = () => remove(u.id);
+      const no = document.createElement("button"); no.className = "link"; no.textContent = "Keep";
+      no.onclick = () => { confirmId = null; render(); };
+      a.append(q, yes, no);
+    } else {
+      const del = document.createElement("button"); del.className = "link"; del.textContent = "Remove";
+      del.onclick = () => { confirmId = u.id; render(); };
+      a.append(del);
+    }
+    li.append(n, s, m, a);
+    listEl.append(li);
+  }
+}
+
+async function refresh() {
+  if (!assets) return;
+  try {
+    const names = {};
+    if (db) {
+      const snap = await db.collection("clips").get();
+      for (const d of snap.docs) names[d.id] = d.data() || {};
+    }
+    finished = [];
+    if (db) {
+      const fs = await db.collection("finished").get();
+      for (const d of fs.docs) { const v = d.data() || {}; if (v.asset) finished.push({ asset: v.asset, name: v.name || "Reel", createdAt: v.createdAt || "" }); }
+      finished.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    }
+    renderReels();
+    const done = new Set(finished.map(f => f.asset));
+    const res = await assets.list();
+    const all = (res.assets || []).filter(x => String(x.contentType || "").startsWith("video/") && !done.has(x.id));
+    uploaded = all.map(x => ({ id: x.id, name: (names[x.id] && names[x.id].name) || ("Clip uploaded " + new Date(x.createdAt).toLocaleString()), size: x.sizeBytes || 0 }));
+    const u = res.usage;
+    $("usage").textContent = uploaded.length ? uploaded.length + (uploaded.length === 1 ? " clip" : " clips") : "";
+    if (u && u.maxBytes) $("usage").textContent += " · " + mb(u.bytes) + " of " + mb(u.maxBytes) + " used";
+  } catch (e) { /* keep what we have */ }
+  render();
+}
+
+function renderReels() {
+  const box = $("reels");
+  box.textContent = "";
+  $("rcount").textContent = finished.length ? finished.length + (finished.length === 1 ? " reel" : " reels") : "";
+  if (!finished.length) {
+    const p = document.createElement("p"); p.className = "empty";
+    p.textContent = "Your edited reels will appear here. Tap Download to save one to your phone.";
+    box.append(p); return;
+  }
+  for (const f of finished) {
+    const row = document.createElement("div"); row.className = "reel";
+    const v = document.createElement("video");
+    v.src = "/_blob/" + f.asset; v.muted = true; v.playsInline = true; v.preload = "metadata"; v.controls = true;
+    const info = document.createElement("div"); info.className = "info";
+    const t = document.createElement("span"); t.className = "title"; t.textContent = f.name;
+    const b = document.createElement("button"); b.className = "dl"; b.type = "button"; b.textContent = "DOWNLOAD";
+    const m = document.createElement("span"); m.className = "dl-msg";
+    if (!downloads) { b.disabled = true; m.textContent = "Downloads aren't available in this view. Open the page in the Claude app or claude.ai."; }
+    b.onclick = () => save(f, b, m);
+    info.append(t, b, m);
+    row.append(v, info);
+    box.append(row);
+  }
+}
+
+async function save(f, b, m) {
+  b.disabled = true; m.textContent = "Preparing…";
+  try {
+    const blob = await (await fetch("/_blob/" + f.asset)).blob();
+    const name = /\.mp4$/i.test(f.name) ? f.name : f.name.replace(/[^\w\-ಀ-೿ ]+/g, "").trim() + ".mp4";
+    await downloads.save({ filename: name, data: blob });
+    m.textContent = "Saved to your phone.";
+  } catch (e) {
+    const c = e && e.code;
+    m.textContent = c === "declined" ? "Download cancelled." :
+                    c === "rate_limited" ? "Another download is in progress. Try again in a moment." :
+                    "Download didn't work here. Try again, or ask Claude to send it in the chat.";
+  }
+  b.disabled = false;
+}
+
+async function remove(id) {
+  confirmId = null;
+  try { await assets.delete(id); if (db) { try { await db.collection("clips").doc(id).delete(); } catch (e2) {} } } catch (e) { showNotice("Couldn't remove that clip. Try again in a moment."); }
+  await refresh();
+}
+
+function showNotice(t) { const n = $("notice"); n.textContent = t; n.hidden = !t; }
+
+async function handle(files) {
+  showNotice("");
+  if (!assets) { showNotice("Uploads aren't available here. Open this page while signed in to Claude."); return; }
+  const vids = [...files].filter(f => f.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|3gp)$/i.test(f.name));
+  if (!vids.length) { showNotice("Those weren't video files. Choose MP4 or MOV clips."); return; }
+  for (const f of vids) {
+    const key = f.name + ":" + f.size + ":" + Date.now() + Math.random();
+    const p = { name: f.name, size: f.size, state: "up", error: "" };
+    pending.set(key, p);
+    if (f.size > MAX) {
+      p.state = "error"; p.error = "Too big (" + mb(f.size) + "). Trim it under 20 MB, or attach it in the chat instead.";
+      continue;
+    }
+    render();
+    try {
+      const type = (f.type === "video/webm") ? "video/webm" : "video/mp4";
+      const r = await assets.upload(f, { type });
+      if (db) { try { await db.collection("clips").doc(r.id).set({ name: f.name, size: f.size, uploadedAt: new Date().toISOString() }); } catch (e2) {} }
+      p.state = "done";
+      await refresh();
+    } catch (e) {
+      p.state = "error";
+      p.error = (e && e.code === "too_large") ? "Too big. Trim it under 20 MB, or attach it in the chat instead."
+              : (e && (e.code === "not_granted" || e.code === "forbidden")) ? "This account can't upload here. Open the page as its owner."
+              : "Upload didn't finish. Check your connection and choose the clip again.";
+    }
+  }
+  render();
+}
+
+$("picker").addEventListener("change", (e) => { handle(e.target.files); e.target.value = ""; });
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); handle(e.dataTransfer.files); });
+
+(async () => {
+  try { assets = window.claude ? await window.claude.use("assets") : null; } catch (e) { assets = null; }
+  try { db = window.claude ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  try { downloads = window.claude ? await window.claude.use("downloads") : null; } catch (e) { downloads = null; }
+  if (assets) await refresh(); else render();
+})();
+</script>
